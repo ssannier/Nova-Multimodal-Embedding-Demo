@@ -1,0 +1,59 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CloudWatchLogs",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:*:*:*"
+        },
+	{
+            "Sid": "AllowListSourceBucket",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket"
+            ],
+            "Resource": "arn:aws:s3:::cic-multimedia-test"
+        },
+        {
+            "Sid": "AllowS3ObjectAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject" 
+            ],
+            "Resource": [
+                "arn:aws:s3:::cic-multimedia-test/source.zip",
+                "arn:aws:s3:::cic-multimedia-test/batch-job-manifests/multimedia-manifest.csv"
+            ]
+        },
+        {
+            "Sid": "S3SourceAndOutput",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::cic-multimedia-test/*",
+                "arn:aws:s3:::cic-multimedia-test"
+            ]
+        },
+        {
+            "Sid": "S3BatchJobCreation",
+            "Effect": "Allow",
+            "Action": "s3control:CreateJob",
+            "Resource": "*"
+        },
+        {
+            "Sid": "PassRoleForBatchOps",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::756493389182:role/S3BatchOpsExecutionRole"
+        }
+    ]
+}

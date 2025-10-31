@@ -1,0 +1,8 @@
+Lambda Info
+
+Lambda Fn name: NovaEmbeddingProcessor
+
+Lambda Fn Role Name: NovaEmbeddingLambdaExecutionRole
+	Role ARN: arn:aws:iam::756493389182:role/NovaEmbeddingLambdaExecutionRole
+	Policy ARN: arn:aws:iam::756493389182:policy/NovaEmbeddingLambdaPolicy
+Lambda Fn ARN: arn:aws:lambda:us-east-1:756493389182:function:NovaEmbeddingProcessor
