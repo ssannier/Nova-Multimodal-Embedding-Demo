@@ -35,12 +35,18 @@ def create_manifest_file(s3_client, bucket_name, manifest_key):
                         f.write(f"{bucket_name},{obj['Key']}\n")
                         object_count += 1
     
-    # Upload the manifest to S3
+    # Upload manifest to S3
     s3_client.upload_file("manifest.csv", bucket_name, manifest_key)
-    print(f"Created manifest with {object_count} objects and uploaded to s3://{bucket_name}/{manifest_key}")
-    return object_count
 
-def create_s3_batch_job(s3control_client, account_id, manifest_key):
+    # Store ETag of newly uploaded manifest file
+    head_object_response = s3_client.head_object(Bucket=bucket_name, Key=manifest_key)
+    # CreateJob API requires raw hash, so strip quotes.
+    etag = head_object_response['ETag'].strip('"')
+    
+    print(f"Created manifest with {object_count} objects and uploaded to s3://{bucket_name}/{manifest_key}")
+    return object_count, etag # Return both count and etag
+
+def create_s3_batch_job(s3control_client, account_id, manifest_key, manifest_etag):
     """Creates the S3 Batch Operations job to process the manifest using Lambda."""
     
     job_id = str(uuid.uuid4())
@@ -67,12 +73,12 @@ def create_s3_batch_job(s3control_client, account_id, manifest_key):
             },
             'Location': {
                 'ObjectArn': f'arn:aws:s3:::{INPUT_BUCKET}/{manifest_key}',
-                'ETag': 'not-required-for-csv' # ETag is optional for CSV
+                'ETag': manifest_etag
             }
         },
         Priority=10,
         RoleArn=BATCH_ROLE_ARN,
-        # The job will start in a 'Suspended' state; you can resume it later if needed
+        # The job will start in a 'Suspended' state (check the manifest before continuing)
         ClientRequestToken=job_id,
         Description=f'Nova-Embeddings-Batch-Job-{job_id[:8]}'
     )
@@ -92,10 +98,11 @@ if __name__ == "__main__":
     
     MANIFEST_KEY = 'batch-job-manifests/multimedia-manifest.csv'
     
-    object_count = create_manifest_file(s3_client, INPUT_BUCKET, MANIFEST_KEY)
+    # Receives both count and ETag now. woo
+    object_count, manifest_etag = create_manifest_file(s3_client, INPUT_BUCKET, MANIFEST_KEY)
     
     if object_count > 0:
-        job_id = create_s3_batch_job(s3control_client, account_id, MANIFEST_KEY)
+        job_id = create_s3_batch_job(s3control_client, account_id, MANIFEST_KEY, manifest_etag)
         print(f"Successfully launched S3 Batch Operations job: {job_id}")
     else:
         print("No files found to process. Skipping S3 Batch Job creation.")
