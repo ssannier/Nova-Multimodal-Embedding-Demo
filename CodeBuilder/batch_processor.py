@@ -1,5 +1,6 @@
 
 import boto3
+from botocore.exceptions import ClientError
 import os
 import uuid
 
@@ -93,9 +94,22 @@ def create_s3_batch_job(s3control_client, account_id, manifest_key, manifest_eta
 
     try:
         response = s3control_client.create_job(**job_request)
+    except ClientError as e:
+        # Print detailed error info from boto3 to help triage InvalidRequest problems
+        print("ClientError creating S3 Batch job:")
+        try:
+            error_info = e.response.get('Error', {})
+            meta = e.response.get('ResponseMetadata', {})
+            print("Error Code:", error_info.get('Code'))
+            print("Error Message:", error_info.get('Message'))
+            print("HTTP Status Code:", meta.get('HTTPStatusCode'))
+            print("RequestId:", meta.get('RequestId'))
+        except Exception:
+            print("Failed to parse ClientError.response:", repr(e))
+        # Re-raise so the caller/build fails as before but with richer logs
+        raise
     except Exception as e:
-        # Surface the exception and return None so callers can inspect logs
-        print("Error creating S3 Batch job:", repr(e))
+        print("Unexpected error creating S3 Batch job:", repr(e))
         raise
 
     print(f"S3 Batch Job created. Job ARN: {response.get('JobArn')}")
