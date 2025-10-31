@@ -16,9 +16,6 @@ def create_manifest_file(s3_client, bucket_name, manifest_key):
     """Lists objects in the source bucket and creates the CSV manifest file."""
     print(f"Listing objects in s3://{bucket_name}...")
     
-    # Simple CSV manifest format: Bucket,Key
-    manifest_content = f"{bucket_name},{manifest_key}\n" # Include manifest header if needed, but S3 Batch Ops uses bucket,key
-    
     # Use paginator for large numbers of objects
     paginator = s3_client.get_paginator('list_objects_v2')
     pages = paginator.paginate(Bucket=bucket_name)
@@ -30,9 +27,11 @@ def create_manifest_file(s3_client, bucket_name, manifest_key):
             if "Contents" in page:
                 for obj in page["Contents"]:
                     # Skip folders, and the manifest file itself if it's in the same bucket
-                    if (not obj["Key"].endswith('/') and obj["Key"] != manifest_key and obj["Key"].lower() != SOURCE_ZIP_KEY):
+                    # Also skip any key that ends with the SOURCE_ZIP_KEY (case-insensitive)
+                    key = obj["Key"]
+                    if (not key.endswith('/') and key != manifest_key and not key.lower().endswith(SOURCE_ZIP_KEY.lower())):
                         # Format is: BucketName,KeyName
-                        f.write(f"{bucket_name},{obj['Key']}\n")
+                        f.write(f"{bucket_name},{key}\n")
                         object_count += 1
     
     # Upload manifest to S3
@@ -52,37 +51,53 @@ def create_s3_batch_job(s3control_client, account_id, manifest_key, manifest_eta
     job_id = str(uuid.uuid4())
     print(f"Creating S3 Batch Job with ID: {job_id}")
 
-    response = s3control_client.create_job(
-        AccountId=account_id,
-        Operation={
+    # Manifest ETag should be the raw hash (without surrounding quotes). The caller
+    # (create_manifest_file) returns the ETag stripped of quotes, so pass it through.
+    manifest_etag_for_request = manifest_etag
+    job_request = {
+        'AccountId': account_id,
+        'ConfirmationRequired': False,
+        'ClientRequestToken': job_id,
+        'Operation': {
             'LambdaInvoke': {
                 'FunctionArn': LAMBDA_ARN
             }
         },
-        Report={
+        'Report': {
+            # The CreateJob API expects the report bucket as an S3 ARN when calling S3Control.
+            # Use the bucket ARN in the payload for real AWS calls.
             'Bucket': f'arn:aws:s3:::{INPUT_BUCKET}',
-            'Prefix': 'batch-job-reports',
+            'Prefix': 'batch-job-reports/',
             'Format': 'Report_CSV_20180820',
             'Enabled': True,
-            'ReportScope': 'All' # Report on all tasks
+            'ReportScope': 'AllTasks',
+            'ExpectedBucketOwner': account_id
         },
-        Manifest={
+        'Manifest': {
             'Spec': {
                 'Format': 'S3BatchOperations_CSV_20161005',
                 'Fields': ['Bucket', 'Key']
             },
             'Location': {
                 'ObjectArn': f'arn:aws:s3:::{INPUT_BUCKET}/{manifest_key}',
-                'ETag': manifest_etag
+                'ETag': manifest_etag_for_request
             }
         },
-        Priority=10,
-        RoleArn=BATCH_ROLE_ARN,
-        # The job will start in a 'Suspended' state (check the manifest before continuing)
-        ClientRequestToken=job_id,
-        Description=f'Nova-Embeddings-Batch-Job-{job_id[:8]}'
-    )
-    
+        'Priority': 10,
+        'RoleArn': BATCH_ROLE_ARN,
+        'Description': f'Nova-Embeddings-Batch-Job-{job_id[:8]}'
+    }
+
+    # Print payload for debugging (do not leak secrets in production logs)
+    print("S3 Batch create_job payload:", job_request)
+
+    try:
+        response = s3control_client.create_job(**job_request)
+    except Exception as e:
+        # Surface the exception and return None so callers can inspect logs
+        print("Error creating S3 Batch job:", repr(e))
+        raise
+
     print(f"S3 Batch Job created. Job ARN: {response.get('JobArn')}")
     return response.get('JobId')
 
