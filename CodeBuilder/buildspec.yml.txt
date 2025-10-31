@@ -20,9 +20,10 @@ phases:
       - export BEDROCK_MODEL_ID="amazon.nova-multimodal-embeddings-v1:0"
       - export EMBEDDING_DIMENSION="3072"
       - export S3_REGION="us-east-1" # Nova Multimodal Embeddings is in N. Virginia
-      - export BATCH_ROLE_ARN="arn:aws:iam::123456789012:role/S3BatchOpsRole" # PLACEHOLDER -- UPDATE WHEN ROLE IS DEFINED
-      - export LAMBDA_ARN="arn:aws:lambda:us-east-1:123456789012:function:NovaEmbeddingProcessor" # PLACEHOLDER -- UPDATE WHEN LAMBDA FUNCTION CREATED
-
+      # PLACEHOLDER -- UPDATE WHEN ROLE IS DEFINED
+      - export BATCH_ROLE_ARN="arn:aws:iam::123456789012:role/S3BatchOpsRole" 
+      # PLACEHOLDER -- UPDATE WHEN LAMBDA FUNCTION CREATED
+      - export LAMBDA_ARN="arn:aws:lambda:us-east-1:123456789012:function:NovaEmbeddingProcessor"
   build:
     commands:
       # Run the main Python script that generates the manifest and starts the S3 Batch Job

@@ -17,7 +17,7 @@ def create_manifest_file(s3_client, bucket_name, manifest_key):
     # Simple CSV manifest format: Bucket,Key
     manifest_content = f"{bucket_name},{manifest_key}\n" # Include manifest header if needed, but S3 Batch Ops uses bucket,key
     
-    # Use a paginator for large numbers of objects
+    # Use paginator for large numbers of objects
     paginator = s3_client.get_paginator('list_objects_v2')
     pages = paginator.paginate(Bucket=bucket_name)
 

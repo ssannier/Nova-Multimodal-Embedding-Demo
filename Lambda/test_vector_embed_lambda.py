@@ -4,15 +4,23 @@ import os
 from unittest.mock import patch, MagicMock
 from io import BytesIO
 
-# Import the handler function and constants from your lambda file
-from vector_embed_lambda import lambda_handler 
-
-# Define mock constants to simulate environment variables
+# Define mock constants to use across the script
 MOCK_REGION = 'us-east-1'
 MOCK_VECTOR_BUCKET = 'test-vector-bucket'
 MOCK_VECTOR_INDEX = 'test-index'
 MOCK_BEDROCK_MODEL_ID = 'amazon.nova-multimodal-embeddings-v1:0:8192'
-MOCK_EMBEDDING_DIMENSION = 1024
+MOCK_EMBEDDING_DIMENSION = 3027
+
+# Set all required os.environ variables here.
+# Note: all values in os.environ must be strings.
+os.environ['S3_REGION'] = MOCK_REGION 
+os.environ['VECTOR_BUCKET'] = MOCK_VECTOR_BUCKET
+os.environ['VECTOR_INDEX'] = MOCK_VECTOR_INDEX
+os.environ['BEDROCK_MODEL_ID'] = MOCK_BEDROCK_MODEL_ID
+os.environ['EMBEDDING_DIMENSION'] = str(MOCK_EMBEDDING_DIMENSION)
+
+# Import the handler function and constants from your lambda file
+from vector_embed_lambda import lambda_handler 
 
 class TestVectorEmbedLambda(unittest.TestCase):
 
