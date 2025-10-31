@@ -8,6 +8,8 @@ INPUT_BUCKET = os.environ['INPUT_BUCKET']
 S3_REGION = os.environ['S3_REGION']
 BATCH_ROLE_ARN = os.environ['BATCH_ROLE_ARN']
 LAMBDA_ARN = os.environ['LAMBDA_ARN']
+# Not pretty, but used to exclude the source files from processing
+SOURCE_ZIP_KEY = 'source.zip'
 # The VECTOR_BUCKET and VECTOR_INDEX are used inside Lambda fn, but defined here for context
 
 def create_manifest_file(s3_client, bucket_name, manifest_key):
@@ -28,7 +30,7 @@ def create_manifest_file(s3_client, bucket_name, manifest_key):
             if "Contents" in page:
                 for obj in page["Contents"]:
                     # Skip folders, and the manifest file itself if it's in the same bucket
-                    if not obj["Key"].endswith('/') and obj["Key"] != manifest_key:
+                    if (not obj["Key"].endswith('/') and obj["Key"] != manifest_key and obj["Key"].lower() != SOURCE_ZIP_KEY):
                         # Format is: BucketName,KeyName
                         f.write(f"{bucket_name},{obj['Key']}\n")
                         object_count += 1
@@ -56,7 +58,7 @@ def create_s3_batch_job(s3control_client, account_id, manifest_key):
             'Prefix': 'batch-job-reports',
             'Format': 'Report_CSV_20180820',
             'Enabled': True,
-            'Scope': 'All' # Report on all tasks
+            'ReportScope': 'All' # Report on all tasks
         },
         Manifest={
             'Spec': {
